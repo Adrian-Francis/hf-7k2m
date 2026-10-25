@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<title>Spend</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Spend">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<style>
+:root{
+  --u:1vh;
+  --bg:#F2F2F7; --card:#FFFFFF; --ink:#111113; --sec:#5F5F66; --muted:#8E8E96;
+  --accent:#087443; --track:#DEDEE4; --key:#FFFFFF; --keyactive:#E3E3E8;
+  --btn:#111113; --btnink:#FFFFFF; --btnoff:#E3E3E8; --btnoffink:#5F5F66;
+  --red:#B3261E; --div:#ECECF0;
+}
+@supports (height:100dvh){ :root{ --u:1dvh; } }
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#000000; --card:#1C1C1E; --ink:#F5F5F7; --sec:#A1A1A8; --muted:#8E8E96;
+    --accent:#4ADE9A; --track:#2C2C2E; --key:#1C1C1E; --keyactive:#3A3A3C;
+    --btn:#F5F5F7; --btnink:#111113; --btnoff:#2C2C2E; --btnoffink:#A1A1A8;
+    --red:#FF8A80; --div:#2C2C2E;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;overscroll-behavior:none;
+  -webkit-user-select:none;user-select:none}
+button{font-family:inherit;border:0;cursor:pointer;color:inherit;touch-action:manipulation;padding:0}
+#app{position:fixed;inset:0;overflow:hidden}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;width:100%;max-width:430px;margin:0 auto;
+  padding:calc(env(safe-area-inset-top) + 12px) 20px calc(env(safe-area-inset-bottom) + 14px)}
+.hidden{display:none !important}
+.balNum,.balCents,.amount,.after,.rAmt,.rAfter,.key,.title{font-variant-numeric:tabular-nums}
+.sp{flex:1 1 0;min-height:clamp(14px,calc(var(--u)*2.8),24px);max-height:44px}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;height:44px;flex:none}
+.pill{display:flex;align-items:center;gap:7px;background:var(--card);border-radius:15px;padding:6px 12px 6px 10px;
+  font-size:13px;font-weight:500;color:var(--sec);min-height:30px}
+.dot{width:8px;height:8px;border-radius:4px;background:var(--accent)}
+.pill.sync .dot{background:var(--muted)}
+.pill.off .dot{background:var(--red)}
+.link{display:flex;align-items:center;gap:2px;min-height:44px;font-size:17px;font-weight:500;color:var(--accent);background:none}
+.link svg{flex:none}
+
+/* balance */
+.bal{margin-top:8px;flex:none}
+.balLabel{font-size:15px;font-weight:500;line-height:18px;color:var(--sec)}
+.balRow{display:flex;align-items:baseline;margin-top:6px;line-height:1}
+.balNum{font-size:clamp(56px,calc(var(--u)*9),76px);font-weight:700;letter-spacing:-0.04em;color:var(--ink);line-height:1.05}
+.balCents{font-size:clamp(28px,calc(var(--u)*4.3),36px);font-weight:600;letter-spacing:-0.03em;color:var(--sec)}
+.loading .balNum,.loading .balCents{opacity:.35}
+.low .balNum,.low .balCents{color:var(--red)}
+.bar{height:6px;border-radius:3px;background:var(--track);margin-top:12px;overflow:hidden}
+.fill{height:6px;border-radius:3px;background:var(--accent);width:0;transition:width .35s ease}
+.low .fill{background:var(--red)}
+.meta{display:flex;justify-content:space-between;margin-top:10px;font-size:13px;line-height:16px;color:var(--sec)}
+
+/* spend card */
+.card{background:var(--card);border-radius:28px;
+  padding:clamp(10px,calc(var(--u)*1.9),16px) 20px 14px;display:flex;flex-direction:column;align-items:center;flex:none}
+.cardLabel{font-size:15px;font-weight:500;line-height:18px;color:var(--sec)}
+.amount{font-size:clamp(40px,calc(var(--u)*6.6),56px);font-weight:600;letter-spacing:-0.03em;line-height:1.12;color:var(--ink)}
+.amount.zero{color:var(--muted)}
+.after{min-height:20px;font-size:15px;font-weight:500;line-height:20px;color:var(--sec);text-align:center}
+.after.bad{color:var(--red)}
+.dateLine{display:flex;align-items:center;gap:6px;margin-top:2px;font-size:13px;line-height:18px;color:var(--sec);text-align:center}
+.dateLine.bad{color:var(--red)}
+
+/* keypad + button */
+.keys{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;flex:none}
+.key{height:clamp(46px,calc(var(--u)*7.4),62px);border-radius:16px;background:var(--key);color:var(--ink);font-size:26px;font-weight:500}
+.key:active{background:var(--keyactive)}
+.key.del{background:transparent;display:flex;align-items:center;justify-content:center}
+.key.del:active{background:var(--keyactive)}
+.go{margin-top:clamp(12px,calc(var(--u)*2.1),18px);width:100%;height:clamp(50px,calc(var(--u)*7),60px);border-radius:29px;
+  background:var(--btn);color:var(--btnink);font-size:17px;font-weight:600;flex:none}
+.go:active{opacity:.85}
+.go:disabled{background:var(--btnoff);color:var(--btnoffink);cursor:default;opacity:1}
+
+/* history */
+.title{font-size:34px;font-weight:700;letter-spacing:-0.025em;line-height:40px;margin-top:4px}
+.sub{margin-top:6px;font-size:15px;line-height:20px;color:var(--sec);min-height:20px}
+.list{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;margin:18px -20px 0;padding:0 20px 20px;-webkit-user-select:text;user-select:text}
+.day{margin-bottom:20px}
+.dayLabel{font-size:13px;font-weight:600;line-height:16px;color:var(--sec);padding:0 4px 8px}
+.rows{background:var(--div);border-radius:20px;overflow:hidden;display:flex;flex-direction:column;gap:1px}
+.row{background:var(--card);padding:14px 16px;display:flex;align-items:center;justify-content:space-between}
+.rAmt{font-size:17px;font-weight:600;line-height:22px;color:var(--ink)}
+.rAmt.up{color:var(--accent)}
+.rSub{font-size:13px;line-height:18px;color:var(--sec)}
+.rAfter{font-size:15px;line-height:20px;color:var(--sec)}
+.empty{padding:40px 0;text-align:center;color:var(--sec);font-size:15px}
+
+/* passcode */
+.passWrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0}
+.passTitle{font-size:24px;font-weight:600;letter-spacing:-0.02em}
+.passSub{margin-top:8px;font-size:15px;color:var(--sec);text-align:center;min-height:20px}
+.passSub.bad{color:var(--red)}
+.dots{display:flex;gap:16px;margin-top:28px}
+.pd{width:14px;height:14px;border-radius:7px;border:2px solid var(--sec)}
+.pd.on{background:var(--ink);border-color:var(--ink)}
+.shake{animation:shake .4s}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-10px)}40%,80%{transform:translateX(10px)}}
+@media (prefers-reduced-motion: reduce){.shake{animation:none}.fill{transition:none}}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HOME -->
+  <section id="home" class="screen loading">
+    <div class="top">
+      <button id="pill" class="pill sync" type="button" aria-label="Refresh"><span class="dot"></span><span id="pillText">Syncing</span></button>
+      <button id="histBtn" class="link" type="button"><span>History</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>
+      </button>
+    </div>
+
+    <div class="bal">
+      <div class="balLabel">Available to spend</div>
+      <div class="balRow"><span id="balDollars" class="balNum">$0</span><span id="balCents" class="balCents">.00</span></div>
+      <div class="bar"><div id="fill" class="fill"></div></div>
+      <div class="meta"><span id="metaLeft">Topped up</span><span id="metaRight"></span></div>
+    </div>
+
+    <div class="sp"></div>
+    <div class="card">
+      <div class="cardLabel">Spend</div>
+      <div id="amount" class="amount zero">$0.00</div>
+      <div id="afterLine" class="after" aria-live="polite"></div>
+      <div id="dateLine" class="dateLine">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>
+        <span id="dateText">Date added automatically</span>
+      </div>
+    </div>
+
+    <div class="sp" style="min-height:clamp(12px,calc(var(--u)*2.1),18px)"></div>
+    <div id="homeKeys" class="keys"></div>
+    <button id="enterBtn" class="go" type="button" disabled>Enter</button>
+  </section>
+
+  <!-- HISTORY -->
+  <section id="history" class="screen hidden">
+    <div class="top">
+      <button id="backBtn" class="link" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"></path></svg>
+        <span>Back</span>
+      </button>
+    </div>
+    <div class="title">History</div>
+    <div id="histSummary" class="sub"></div>
+    <div id="histList" class="list"></div>
+  </section>
+
+  <!-- PASSCODE -->
+  <section id="pass" class="screen hidden">
+    <div class="passWrap">
+      <div class="passTitle">Enter passcode</div>
+      <div id="passSub" class="passSub">Find it in the Settings tab of the Sheet</div>
+      <div id="dots" class="dots" aria-hidden="true"></div>
+    </div>
+    <div id="passKeys" class="keys"></div>
+  </section>
+
+</div>
+
+<script>
+/* ============ CONFIG ============
+   Paste your Apps Script web app URL (ends in /exec) between the quotes.
+   Leave it empty to try the app with sample data (demo mode). */
+var API_URL = 'https://script.google.com/macros/s/AKfycbyCBrpq8RvzvRR1fatFkOcituTxG8m93zqQeKxkeRGw2U5vIZTLtfgOqTYuLNVU2ipT-g/exec';
+/* ================================ */
+
+(function () {
+  'use strict';
+
+  var DEMO = !API_URL;
+  var CACHE_KEY = 'spend_state_v1';
+  var PASS_KEY = 'spend_pass_v1';
+
+  function $(id) { return document.getElementById(id); }
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+  var S = null;            // last state from the Sheet
+  var cents = 0;           // amount being typed
+  var sending = false;
+  var rid = null;          // stable id for the current attempt, stops double entries
+  var note = '';
+  var noteBad = false;
+  var conn = DEMO ? 'demo' : 'sync';
+  var pass = lsGet(PASS_KEY) || '';
+  var passBuf = '';
+  var passTried = false;
+  var view = 'home';
+
+  if (!DEMO) {
+    try { S = JSON.parse(lsGet(CACHE_KEY) || 'null'); } catch (e) { S = null; }
+  }
+
+  /* ---------- formatting ---------- */
+  function fmt(c) {
+    var a = Math.abs(c);
+    var d = Math.floor(a / 100);
+    var r = String(a % 100); if (r.length < 2) r = '0' + r;
+    return (c < 0 ? '−' : '') + '$' + d.toLocaleString('en-AU') + '.' + r;
+  }
+  function timeNow() {
+    return new Date().toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+  }
+
+  /* ---------- keypad ---------- */
+  var SVG_DEL = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 6H9l-6 6 6 6h12a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1Z"></path><path d="m13 10 4 4m0-4-4 4"></path></svg>';
+  function buildKeys(el, onDigit, onDel) {
+    el.innerHTML = '';
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, '', 0, 'del'].forEach(function (k) {
+      if (k === '') { el.appendChild(document.createElement('div')); return; }
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'key';
+      if (k === 'del') {
+        b.className += ' del';
+        b.setAttribute('aria-label', 'Delete');
+        b.innerHTML = SVG_DEL;
+        b.addEventListener('click', onDel);
+      } else {
+        b.textContent = String(k);
+        b.addEventListener('click', function () { onDigit(k); });
+      }
+      el.appendChild(b);
+    });
+  }
+
+  function digit(d) {
+    if (sending) return;
+    cents = Math.min(cents * 10 + d, 9999999);
+    rid = null;
+    note = ''; noteBad = false;
+    render();
+  }
+  function backspace() {
+    if (sending) return;
+    cents = Math.floor(cents / 10);
+    rid = null;
+    note = ''; noteBad = false;
+    render();
+  }
+
+  /* ---------- screens ---------- */
+  function show(v) {
+    view = v;
+    $('home').classList.toggle('hidden', v !== 'home');
+    $('history').classList.toggle('hidden', v !== 'history');
+    $('pass').classList.toggle('hidden', v !== 'pass');
+    if (v === 'history') renderHistory();
+    if (v === 'pass') renderDots();
+  }
+
+  /* ---------- rendering ---------- */
+  function setConn(c) { conn = c; renderPill(); }
+  function renderPill() {
+    var p = $('pill');
+    p.className = 'pill ' + (conn === 'ok' || conn === 'demo' ? '' : conn);
+    $('pillText').textContent = conn === 'ok' ? 'Synced' : conn === 'sync' ? 'Syncing' : conn === 'demo' ? 'Demo data' : 'Offline';
+  }
+
+  function render() {
+    var s = S;
+    var bal = s ? s.balance : 0;
+    var low = s ? s.low : 20000;
+    var topup = s ? s.topup : 0;
+    var isLow = !!s && bal <= low;
+    var home = $('home');
+    home.classList.toggle('loading', !s);
+    home.classList.toggle('low', isLow);
+
+    var abs = Math.abs(bal);
+    $('balDollars').textContent = (bal < 0 ? '−' : '') + '$' + Math.floor(abs / 100).toLocaleString('en-AU');
+    var cc = String(abs % 100); if (cc.length < 2) cc = '0' + cc;
+    $('balCents').textContent = '.' + cc;
+
+    var pct = topup > 0 ? Math.max(0, Math.min(100, bal / topup * 100)) : 0;
+    $('fill').style.width = pct.toFixed(1) + '%';
+    $('metaLeft').textContent = s ? 'Topped up ' + fmt(topup) : '';
+    $('metaRight').textContent = s && s.nextLabel ? 'Next top-up ' + s.nextLabel : '';
+
+    var has = cents > 0;
+    var amt = $('amount');
+    amt.textContent = fmt(cents);
+    amt.classList.toggle('zero', !has);
+
+    var after = bal - cents;
+    var af = $('afterLine');
+    if (has && s) {
+      af.textContent = after >= 0 ? 'Balance after ' + fmt(after) : 'Over by ' + fmt(-after);
+      af.classList.toggle('bad', after <= low);
+    } else {
+      af.textContent = '';
+      af.classList.remove('bad');
+    }
+
+    var dl = $('dateLine');
+    var dt = $('dateText');
+    if (note) {
+      dt.textContent = note;
+      dl.classList.toggle('bad', noteBad);
+    } else {
+      dt.textContent = (s && s.todayLabel ? s.todayLabel + ' · ' : '') + 'date added automatically';
+      dl.classList.remove('bad');
+    }
+
+    var btn = $('enterBtn');
+    btn.disabled = !has || sending || !s;
+    btn.textContent = sending ? 'Saving…' : 'Enter';
+
+    renderPill();
+    if (view === 'history') renderHistory();
+  }
+
+  function rowHtml(e) {
+    var up = e.kind !== 'spend';
+    var sub = e.kind === 'auto' ? 'Fortnightly top-up' : e.kind === 'manual' ? 'Top-up · ' + e.time : e.time;
+    var amt = (up ? '+' : '−') + fmt(Math.abs(e.cents));
+    return '<div class="row"><div><div class="rAmt' + (up ? ' up' : '') + '">' + amt + '</div><div class="rSub">' + sub +
+      '</div></div><div class="rAfter">' + fmt(e.after) + '</div></div>';
+  }
+  function renderHistory() {
+    var h = S && S.history ? S.history : [];
+    var groups = [];
+    var idx = {};
+    h.forEach(function (e) {
+      if (!(e.dayKey in idx)) { idx[e.dayKey] = groups.length; groups.push({ label: e.day, rows: [] }); }
+      groups[idx[e.dayKey]].rows.push(e);
+    });
+    $('histList').innerHTML = groups.length
+      ? groups.map(function (g) {
+          return '<div class="day"><div class="dayLabel">' + g.label + '</div><div class="rows">' + g.rows.map(rowHtml).join('') + '</div></div>';
+        }).join('')
+      : '<div class="empty">Nothing here yet</div>';
+    $('histSummary').textContent = S ? fmt(S.spentSince) + ' spent since the last top-up' : '';
+  }
+
+  function renderDots() {
+    var el = $('dots');
+    var html = '';
+    for (var i = 0; i < 6; i++) html += '<span class="pd' + (i < passBuf.length ? ' on' : '') + '"></span>';
+    el.innerHTML = html;
+  }
+
+  /* ---------- passcode ---------- */
+  function passDigit(d) {
+    if (passBuf.length >= 6) return;
+    passBuf += String(d);
+    $('passSub').textContent = 'Find it in the Settings tab of the Sheet';
+    $('passSub').classList.remove('bad');
+    renderDots();
+    if (passBuf.length === 6) {
+      pass = passBuf;
+      passTried = true;
+      refresh();
+    }
+  }
+  function passDelete() {
+    passBuf = passBuf.slice(0, -1);
+    renderDots();
+  }
+  function passFailed() {
+    pass = '';
+    passBuf = '';
+    $('passSub').textContent = passTried ? 'That passcode didn’t work. Try again.' : 'Find it in the Settings tab of the Sheet';
+    $('passSub').classList.toggle('bad', passTried);
+    passTried = false;
+    var d = $('dots');
+    d.classList.remove('shake'); void d.offsetWidth; d.classList.add('shake');
+    show('pass');
+  }
+
+  /* ---------- talking to the Sheet ---------- */
+  function saveCache() { if (!DEMO && S) lsSet(CACHE_KEY, JSON.stringify(S)); }
+
+  function refresh() {
+    if (DEMO) { S = demoState(); render(); return Promise.resolve(); }
+    if (sending) return Promise.resolve();
+    setConn('sync');
+    var url = API_URL + (API_URL.indexOf('?') >= 0 ? '&' : '?') + 'action=state&pass=' + encodeURIComponent(pass);
+    return fetch(url).then(function (r) { return r.json(); }).then(function (j) {
+      if (j.ok) {
+        S = j.state; saveCache();
+        if (pass) lsSet(PASS_KEY, pass);
+        passTried = false;
+        setConn('ok');
+        if (view === 'pass') show('home');
+        render();
+      } else if (j.error === 'passcode') {
+        lsSet(PASS_KEY, '');
+        setConn('ok');
+        passFailed();
+      } else {
+        setConn('off');
+      }
+    }).catch(function () { setConn('off'); });
+  }
+
+  function uid() {
+    try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
+    return String(Date.now()) + '-' + Math.random().toString(36).slice(2, 10);
+  }
+
+  function enter() {
+    if (!cents || sending || !S) return;
+    sending = true; note = ''; noteBad = false;
+    render();
+
+    if (DEMO) {
+      demoEvents.push({ ts: Date.now(), cents: -cents, kind: 'spend' });
+      S = demoState();
+      note = 'Added today at ' + timeNow();
+      cents = 0; sending = false;
+      render();
+      return;
+    }
+
+    rid = rid || uid();
+    fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'add', cents: cents, pass: pass, rid: rid })
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      sending = false;
+      if (j.ok) {
+        S = j.state; saveCache();
+        cents = 0; rid = null;
+        note = 'Added today at ' + timeNow(); noteBad = false;
+        setConn('ok');
+      } else if (j.error === 'passcode') {
+        passFailed();
+      } else {
+        note = 'Couldn’t save. Try again.'; noteBad = true;
+      }
+      render();
+    }).catch(function () {
+      sending = false;
+      note = 'Couldn’t save. Check your connection and try again.'; noteBad = true;
+      setConn('off');
+      render();
+    });
+  }
+
+  /* ---------- demo mode (sample data, nothing is saved) ---------- */
+  var demoEvents = null;
+  function demoInit() {
+    var now = Date.now(), H = 3600e3;
+    var sp = [[96, 7435], [90, 3310], [70, 5275], [56, 4160], [44, 6420], [30, 1995], [24, 8600], [8, 2780], [6, 11235], [4, 650], [2, 3890]];
+    demoEvents = sp.map(function (x) { return { ts: now - x[0] * H, cents: -x[1], kind: 'spend' }; });
+    demoEvents.push({ ts: now - 100 * H, cents: 240000, kind: 'auto' });
+  }
+  function dayLabel(d) { return d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', ''); }
+  function dayKey(d) { return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+  function demoState() {
+    var ev = demoEvents.slice().sort(function (a, b) { return a.ts - b.ts; });
+    var bal = 0, spent = 0;
+    ev.forEach(function (e) { bal += e.cents; e.after = bal; if (e.kind === 'spend') spent += -e.cents; });
+    var now = new Date(), tk = dayKey(now), yk = dayKey(new Date(now.getTime() - 864e5));
+    var hist = ev.slice().reverse().map(function (e) {
+      var d = new Date(e.ts), k = dayKey(d);
+      var pre = k === tk ? 'Today · ' : k === yk ? 'Yesterday · ' : '';
+      return { dayKey: k, day: pre + dayLabel(d), time: d.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }).toLowerCase(), cents: e.cents, kind: e.kind, after: e.after };
+    });
+    return { balance: bal, low: 20000, topup: 240000, spentSince: spent, nextLabel: dayLabel(new Date(now.getTime() + 10 * 864e5)), todayLabel: dayLabel(now), history: hist };
+  }
+
+  /* ---------- wire up ---------- */
+  buildKeys($('homeKeys'), digit, backspace);
+  buildKeys($('passKeys'), passDigit, passDelete);
+  $('enterBtn').addEventListener('click', enter);
+  $('histBtn').addEventListener('click', function () { show('history'); });
+  $('backBtn').addEventListener('click', function () { show('home'); });
+  $('pill').addEventListener('click', function () { refresh(); });
+
+  // keyboard, handy when trying it on a computer
+  document.addEventListener('keydown', function (e) {
+    if (view === 'home') {
+      if (e.key >= '0' && e.key <= '9') digit(Number(e.key));
+      else if (e.key === 'Backspace') backspace();
+      else if (e.key === 'Enter') enter();
+    } else if (view === 'pass') {
+      if (e.key >= '0' && e.key <= '9') passDigit(Number(e.key));
+      else if (e.key === 'Backspace') passDelete();
+    }
+  });
+
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && !sending) refresh(); });
+  window.addEventListener('online', function () { refresh(); });
+  setInterval(function () { if (!document.hidden && !sending && view !== 'pass') refresh(); }, 45000);
+
+  if (DEMO) demoInit();
+  render();
+  refresh();
+})();
+</script>
+</body>
+</html>
